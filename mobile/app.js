@@ -1,5 +1,5 @@
 'use strict';
-var APP_VERSION = 'v5';
+var APP_VERSION = 'v6';
 /* Beta Notes → Google Docs (mobile PWA)
  * Imports KOReader/Kodashboard annotations and posts them as Drive comments,
  * one tap each. No book text or personal config is baked into this code —
@@ -129,13 +129,25 @@ var els = {
   settings:$('settings'), settingsBtn:$('settingsBtn'), refreshBtn:$('refreshBtn'),
   clientId:$('clientId'), docUrl:$('docUrl'), saveCfg:$('saveCfg'),
   file:$('file'), pasteBox:$('pasteBox'), importPaste:$('importPaste'), importMsg:$('importMsg'),
-  postStep:$('postStep'), signIn:$('signIn'), authState:$('authState'),
+  postStep:$('postStep'), signIn:$('signIn'), authState:$('authState'), openDoc:$('openDoc'),
   bookFilterWrap:$('bookFilterWrap'), bookFilter:$('bookFilter'),
   count:$('count'), hideSent:$('hideSent'), resetProgress:$('resetProgress'),
   list:$('list'), toast:$('toast')
 };
 
 function toast(msg){ els.toast.textContent=msg; els.toast.classList.add('show'); setTimeout(function(){ els.toast.classList.remove('show'); }, 1600); }
+
+function copyText(t){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(t).catch(function(){ return legacyCopy(t); });
+  }
+  return Promise.resolve(legacyCopy(t));
+}
+function legacyCopy(t){
+  var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta);
+}
 
 /* settings visibility */
 function refreshSettings(){
@@ -188,6 +200,7 @@ function ensureTokenClient(){
   });
   return tokenClient;
 }
+els.openDoc.onclick = function(){ if(cfg.docUrl){ window.open(cfg.docUrl, '_blank'); } else { toast('Set the doc URL in setup'); } };
 els.signIn.onclick = function(){ connect(false); };
 function connect(silent){
   if(!cfg.clientId){ toast('Add your Client ID in setup first'); settingsForced=true; refreshSettings(); return; }
@@ -212,8 +225,7 @@ function sendNote(note, card){
 }
 function doSend(note, card){
   var textarea = card.querySelector('textarea');
-  var content = textarea.value;
-  var body = { content: content };
+  var body = { content: apiContent(note, textarea.value) };
   if(note.text){ body.quotedFileContent = { mimeType:'text/plain', value: note.text }; }
   var btn = card.querySelector('button.sendBtn');
   btn.disabled = true; btn.textContent = 'Sending…';
@@ -253,13 +265,11 @@ function visibleNotes(){
 }
 
 /* render */
-function defaultContent(n){
-  var lines=[];
-  if(n.chapter) lines.push('['+n.chapter+']');
-  if(n.text) lines.push('“'+n.text+'”');
-  lines.push(''); lines.push(n.note||'');
-  return lines.join('\n');
-}
+// For hand-anchored posting the comment box holds just your note (the passage
+// is the selection). For the unanchored API path we prepend the chapter and
+// carry the passage as quotedFileContent.
+function defaultContent(n){ return n.note || ''; }
+function apiContent(n, note){ return (n.chapter ? '['+n.chapter+'] ' : '') + note; }
 function render(){
   var hide = els.hideSent.checked;
   var shown = visibleNotes();
@@ -277,9 +287,21 @@ function render(){
     if(n.text){ var p=document.createElement('div'); p.className='passage'; p.textContent='“'+n.text+'”'; card.appendChild(p); }
     var ta=document.createElement('textarea'); ta.value=defaultContent(n); card.appendChild(ta);
     var row=document.createElement('div'); row.className='row';
-    var send=document.createElement('button'); send.className='primary sendBtn'; send.textContent=isSent?'Send again':'Send';
+
+    // Hand-anchored flow: copy passage → Find & select in the doc → copy comment → paste.
+    var cp=document.createElement('button'); cp.textContent='1 · Copy passage'; cp.disabled=!n.text;
+    cp.onclick=function(){ copyText(n.text).then(function(){ toast('Passage copied — Find & select it in the doc'); }); };
+
+    var cc=document.createElement('button'); cc.className='primary'; cc.textContent='2 · Copy comment';
+    cc.onclick=function(){ copyText(card.querySelector('textarea').value).then(function(){ toast('Comment copied — paste into the doc'); sent[n.id]=1; saveSent(sent); render(); }); };
+
+    row.appendChild(cp); row.appendChild(cc);
+
+    // Secondary: unanchored sidebar comment via the API (one tap, no Find).
+    var send=document.createElement('button'); send.className='sendBtn'; send.textContent='Post to sidebar';
     send.onclick=function(){ sendNote(n, card); };
     row.appendChild(send);
+
     if(isSent){ var un=document.createElement('button'); un.textContent='Mark unsent'; un.onclick=function(){ delete sent[n.id]; saveSent(sent); render(); }; row.appendChild(un); }
     card.appendChild(row);
     els.list.appendChild(card);
