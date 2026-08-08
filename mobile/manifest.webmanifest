@@ -1,0 +1,13 @@
+{
+  "name": "Beta Notes → Google Docs",
+  "short_name": "Beta Notes",
+  "description": "Post KOReader annotations into a Google Doc as comments, one tap each.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

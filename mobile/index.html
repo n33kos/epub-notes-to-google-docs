@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beta Notes → Docs (mobile)</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a73e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Beta Notes">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<style>
+  :root { --line:#e3e3e6; --muted:#5f6368; --blue:#1a73e8; --green:#137333; --bg:#fff; --fg:#202124; --card:#fff; }
+  @media (prefers-color-scheme: dark){
+    :root { --line:#3c4043; --muted:#9aa0a6; --bg:#202124; --fg:#e8eaed; --card:#292a2d; }
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,Roboto,Arial,sans-serif; margin:0; background:var(--bg); color:var(--fg);
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
+    padding:12px 16px; display:flex; align-items:center; gap:10px; z-index:10; }
+  header h1 { font-size:16px; margin:0; flex:1; }
+  .wrap { padding:14px 16px 90px; max-width:820px; margin:0 auto; }
+  .step { border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; background:var(--card); }
+  .step h2 { font-size:14px; margin:0 0 8px; }
+  .muted { color:var(--muted); font-size:13px; }
+  label.f { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=url], textarea {
+    width:100%; font:inherit; font-size:15px; padding:10px; border:1px solid var(--line);
+    border-radius:8px; background:var(--bg); color:var(--fg); }
+  textarea { resize:vertical; }
+  button { font:inherit; font-size:14px; padding:10px 15px; border-radius:8px; border:1px solid var(--line);
+    background:var(--bg); color:var(--blue); cursor:pointer; }
+  button.primary { background:var(--blue); color:#fff; border:none; }
+  button.wide { width:100%; margin-top:10px; }
+  button:disabled { opacity:.5; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .pill { font-size:12px; padding:2px 9px; border-radius:10px; background:#f1f3f4; color:var(--muted); }
+  @media (prefers-color-scheme: dark){ .pill{ background:#3c4043; } }
+  .pill.ok { background:#e6f4ea; color:var(--green); }
+  .pill.warn { background:#fef7e0; color:#b06000; }
+  .card { border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin:11px 0; background:var(--card); transition:opacity .2s; }
+  .card.sent { opacity:.45; }
+  .card .top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; }
+  .chapter { font-weight:600; font-size:13px; }
+  .passage { color:var(--muted); font-style:italic; font-size:13px; margin:6px 0; line-height:1.4; }
+  .card textarea { min-height:84px; margin:6px 0; }
+  .hidden { display:none !important; }
+  .toolbar { display:flex; gap:14px; align-items:center; font-size:13px; color:var(--muted); margin:6px 0 2px; flex-wrap:wrap; }
+  .spacer { flex:1; }
+  .linkbtn { background:none; border:none; color:var(--blue); padding:0; font-size:13px; cursor:pointer; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#323232; color:#fff;
+    padding:10px 16px; border-radius:20px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; }
+  #toast.show { opacity:1; }
+  code { background:rgba(128,128,128,.15); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Beta Notes → Google Docs</h1>
+  <button id="settingsBtn" title="Settings">⚙︎</button>
+</header>
+
+<div class="wrap">
+
+  <!-- SETTINGS -->
+  <section id="settings" class="step">
+    <h2>Setup (one time, saved on this phone)</h2>
+    <p class="muted">Nothing here is stored in the app's code — it all lives only in this browser.</p>
+    <label class="f">Google OAuth Client ID</label>
+    <input id="clientId" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="f">Target Google Doc URL</label>
+    <input id="docUrl" type="url" placeholder="https://docs.google.com/document/d/…/edit" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="saveCfg" class="primary wide">Save setup</button>
+  </section>
+
+  <!-- IMPORT -->
+  <section id="importStep" class="step">
+    <h2>1 · Import notes from the Kindle</h2>
+    <p class="muted">Pick the Kodashboard <code>.json</code> export (or KOReader <code>metadata.epub.lua</code>),
+      or paste the exported text below.</p>
+    <input id="file" type="file" accept=".json,.lua,text/plain,application/json">
+    <label class="f">…or paste exported JSON / lua</label>
+    <textarea id="pasteBox" placeholder="Paste here, then tap Import"></textarea>
+    <button id="importPaste" class="wide">Import pasted text</button>
+    <div id="importMsg" class="muted" style="margin-top:8px;"></div>
+  </section>
+
+  <!-- POST -->
+  <section id="postStep" class="step hidden">
+    <h2>2 · Post to the doc</h2>
+    <div class="row">
+      <button id="signIn" class="primary">Connect Google</button>
+      <span id="authState" class="pill">not connected</span>
+    </div>
+    <label class="f hidden" id="bookFilterWrap">Book
+      <select id="bookFilter" style="width:100%;font-size:15px;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);"></select>
+    </label>
+    <div class="toolbar">
+      <span id="count"></span>
+      <label><input type="checkbox" id="hideSent"> Hide sent</label>
+      <span class="spacer"></span>
+      <button id="resetProgress" class="linkbtn">Reset sent marks</button>
+    </div>
+  </section>
+
+  <div id="list"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
