@@ -125,7 +125,7 @@ var sent = {};
 /* --------------------------------- DOM ---------------------------------- */
 var $ = function(id){ return document.getElementById(id); };
 var els = {
-  settings:$('settings'), settingsBtn:$('settingsBtn'),
+  settings:$('settings'), settingsBtn:$('settingsBtn'), refreshBtn:$('refreshBtn'),
   clientId:$('clientId'), docUrl:$('docUrl'), saveCfg:$('saveCfg'),
   file:$('file'), pasteBox:$('pasteBox'), importPaste:$('importPaste'), importMsg:$('importMsg'),
   postStep:$('postStep'), signIn:$('signIn'), authState:$('authState'),
@@ -292,6 +292,15 @@ function render(){
 els.hideSent.onchange = render;
 els.bookFilter.onchange = render;
 els.resetProgress.onclick = function(){ if(confirm('Clear the sent marks for this doc?')){ sent={}; saveSent(sent); render(); } };
+
+/* hard refresh: clear app-shell cache + service worker, keep settings/marks */
+els.refreshBtn.onclick = function(){
+  els.refreshBtn.textContent = '…';
+  var jobs = [];
+  if(window.caches){ jobs.push(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); })); }
+  if(navigator.serviceWorker){ jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); })); }
+  Promise.all(jobs).catch(function(){}).then(function(){ location.reload(); });
+};
 
 /* boot */
 refreshSettings();
