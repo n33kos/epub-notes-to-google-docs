@@ -1,4 +1,5 @@
 'use strict';
+var APP_VERSION = 'v5';
 /* Beta Notes → Google Docs (mobile PWA)
  * Imports KOReader/Kodashboard annotations and posts them as Drive comments,
  * one tap each. No book text or personal config is baked into this code —
@@ -295,14 +296,19 @@ els.resetProgress.onclick = function(){ if(confirm('Clear the sent marks for thi
 
 /* hard refresh: clear app-shell cache + service worker, keep settings/marks */
 els.refreshBtn.onclick = function(){
-  els.refreshBtn.textContent = '…';
+  els.refreshBtn.classList.add('spin');
+  toast('Updating to latest…');
   var jobs = [];
   if(window.caches){ jobs.push(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); })); }
   if(navigator.serviceWorker){ jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); })); }
-  Promise.all(jobs).catch(function(){}).then(function(){ location.reload(); });
+  // cache-bust the reload so the shell is refetched even behind proxies
+  Promise.all(jobs).catch(function(){}).then(function(){
+    setTimeout(function(){ location.replace(location.pathname + '?u=' + Date.now()); }, 400);
+  });
 };
 
 /* boot */
+if(els.ver) els.ver.textContent = APP_VERSION;
 refreshSettings();
 render();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
