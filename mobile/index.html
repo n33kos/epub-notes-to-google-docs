@@ -17,8 +17,11 @@
     :root { --line:#3c4043; --muted:#9aa0a6; --bg:#202124; --fg:#e8eaed; --card:#292a2d; }
   }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { overflow-x:hidden; max-width:100%; }
   body { font-family:-apple-system,Roboto,Arial,sans-serif; margin:0; background:var(--bg); color:var(--fg);
     padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  /* 16px min on all controls prevents iOS from auto-zooming (which caused the sideways scroll) */
+  input, select, textarea, button { font-size:16px; }
   header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line);
     padding:12px 16px; display:flex; align-items:center; gap:10px; z-index:10; }
   header h1 { font-size:16px; margin:0; flex:1; }
@@ -32,10 +35,10 @@
   .step h2 { font-size:14px; margin:0 0 8px; }
   .muted { color:var(--muted); font-size:13px; }
   label.f { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
-  input[type=text], input[type=url], textarea {
-    width:100%; font:inherit; font-size:15px; padding:10px; border:1px solid var(--line);
+  input[type=text], input[type=url], input[type=search], textarea, select {
+    width:100%; font-family:inherit; padding:10px; border:1px solid var(--line);
     border-radius:8px; background:var(--bg); color:var(--fg); }
-  textarea { resize:vertical; }
+  textarea { resize:vertical; word-break:break-word; overflow-wrap:anywhere; }
   button { font:inherit; font-size:14px; padding:10px 15px; border-radius:8px; border:1px solid var(--line);
     background:var(--bg); color:var(--blue); cursor:pointer; }
   button.primary { background:var(--blue); color:#fff; border:none; }
@@ -50,9 +53,22 @@
   .card.sent { opacity:.45; }
   .card .top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; }
   .chapter { font-weight:600; font-size:13px; }
-  .passage { color:var(--muted); font-style:italic; font-size:13px; margin:6px 0; line-height:1.4; }
+  .passage { color:var(--muted); font-style:italic; font-size:13px; margin:6px 0; line-height:1.4; overflow-wrap:anywhere; word-break:break-word; }
+  .chapter { overflow-wrap:anywhere; }
   .card textarea { min-height:84px; margin:6px 0; }
   .hidden { display:none !important; }
+  .divider { height:1px; background:var(--line); margin:26px 0 14px; }
+  .section-head { display:flex; align-items:center; gap:10px; margin:0 0 10px; }
+  .section-title { font-size:17px; font-weight:700; }
+  .controls { position:sticky; top:0; background:var(--bg); border:1px solid var(--line);
+    border-radius:12px; padding:11px 12px; margin-bottom:14px; z-index:6; }
+  .controls input[type=search]{ margin:0; }
+  .controls-row { display:flex; gap:10px 14px; align-items:flex-end; flex-wrap:wrap; margin-top:10px; }
+  .ctl { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .ctl select { width:auto; padding:8px 10px; }
+  .chk { display:flex; align-items:center; gap:6px; font-size:14px; color:var(--muted); }
+  .spacer { flex:1; }
+  .linkbtn { background:none; border:none; color:var(--blue); padding:0; cursor:pointer; }
   .toolbar { display:flex; gap:14px; align-items:center; font-size:13px; color:var(--muted); margin:6px 0 2px; flex-wrap:wrap; }
   .spacer { flex:1; }
   .linkbtn { background:none; border:none; color:var(--blue); padding:0; font-size:13px; cursor:pointer; }
@@ -103,14 +119,32 @@
       <span id="authState" class="pill">not connected</span>
     </div>
     <p class="muted" style="margin:8px 0 0;">Anchored flow: <b>Copy passage</b> → in the doc use Find &amp; select it → <b>Copy comment</b> → paste. “Connect Google” is only needed for the one-tap unanchored <b>Post to sidebar</b> option.</p>
-    <label class="f hidden" id="bookFilterWrap">Book
-      <select id="bookFilter" style="width:100%;font-size:15px;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);"></select>
-    </label>
-    <div class="toolbar">
-      <span id="count"></span>
-      <label><input type="checkbox" id="hideSent"> Hide sent</label>
+  </section>
+
+  <div class="divider"></div>
+
+  <div class="section-head">
+    <span class="section-title">Notes</span>
+    <span id="count" class="pill"></span>
+  </div>
+
+  <section id="controls" class="controls hidden">
+    <input id="search" type="search" placeholder="Search chapter, passage, or note…">
+    <div class="controls-row">
+      <label class="ctl">Sort
+        <select id="sortBy">
+          <option value="location">Location in doc</option>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="chapter">Chapter</option>
+        </select>
+      </label>
+      <label class="ctl hidden" id="bookFilterWrap">Book
+        <select id="bookFilter"></select>
+      </label>
+      <label class="chk"><input type="checkbox" id="hideSent"> Hide sent</label>
       <span class="spacer"></span>
-      <button id="resetProgress" class="linkbtn">Reset sent marks</button>
+      <button id="resetProgress" class="linkbtn">Reset sent</button>
     </div>
   </section>
 

@@ -1,5 +1,5 @@
 'use strict';
-var APP_VERSION = 'v6';
+var APP_VERSION = 'v7';
 /* Beta Notes → Google Docs (mobile PWA)
  * Imports KOReader/Kodashboard annotations and posts them as Drive comments,
  * one tap each. No book text or personal config is baked into this code —
@@ -66,11 +66,13 @@ function hash(s){ var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCod
 
 function clean(s){ return String(s==null?'':s).replace(/­/g,'').replace(/^\s+|\s+$/g,''); }
 
-function mkNote(chapter,text,note,page,book){
+function mkNote(chapter,text,note,page,book,datetime){
   text=clean(text); note=clean(note);
   if(!text && !note) return null;
+  var dt = clean(datetime);
   return { chapter:clean(chapter), text:text, note:note, book:clean(book),
-    page: (typeof page==='number'?page:0), id: hash(text+' '+note) };
+    page: (typeof page==='number'?page:0), dt:dt, dtNum: dt ? (Date.parse(dt.replace(' ','T'))||0) : 0,
+    id: hash(text+' '+note) };
 }
 
 function fromLua(root){
@@ -78,7 +80,7 @@ function fromLua(root){
   var title = (root.doc_props && root.doc_props.title) || (root.stats && root.stats.title) || '';
   var out=[];
   Object.keys(ann).forEach(function(k){ var a=ann[k]; if(!a) return;
-    var nt=mkNote(a.chapter, a.text, a.note, a.pageno, title); if(nt) out.push(nt); });
+    var nt=mkNote(a.chapter, a.text, a.note, a.pageno, title, a.datetime); if(nt) out.push(nt); });
   return out;
 }
 
@@ -99,7 +101,8 @@ function fromKodashboard(json){
     var chapter = pick(r,['chapter','chaptertitle','section']);
     var page = pick(r,['page','pageno','pagenumber']);
     var book = pick(r,['booktitle','book','title']);
-    var nt = mkNote(chapter, text, note, typeof page==='number'?page:parseInt(page,10)||0, book);
+    var datetime = pick(r,['datetime','date','time','createdat']);
+    var nt = mkNote(chapter, text, note, typeof page==='number'?page:parseInt(page,10)||0, book, datetime);
     if(nt && nt.note) out.push(nt); // only rows that actually carry a comment
   });
   return out;
@@ -130,6 +133,7 @@ var els = {
   clientId:$('clientId'), docUrl:$('docUrl'), saveCfg:$('saveCfg'),
   file:$('file'), pasteBox:$('pasteBox'), importPaste:$('importPaste'), importMsg:$('importMsg'),
   postStep:$('postStep'), signIn:$('signIn'), authState:$('authState'), openDoc:$('openDoc'),
+  controls:$('controls'), search:$('search'), sortBy:$('sortBy'),
   bookFilterWrap:$('bookFilterWrap'), bookFilter:$('bookFilter'),
   count:$('count'), hideSent:$('hideSent'), resetProgress:$('resetProgress'),
   list:$('list'), toast:$('toast')
@@ -175,8 +179,10 @@ els.importPaste.onclick = function(){ if(els.pasteBox.value.trim()) ingest(els.p
 function ingest(text){
   try {
     notes = detectAndParse(text);
+    notes.forEach(function(n,i){ n.ord = i; }); // preserve import order for stable sort
     els.importMsg.innerHTML = '<span class="pill ok">'+notes.length+' note(s) imported</span>';
     els.postStep.classList.remove('hidden');
+    els.controls.classList.remove('hidden');
     sent = loadSent();
     populateBooks();
     render();
@@ -259,9 +265,23 @@ function populateBooks(){
   }
 }
 function visibleNotes(){
-  if(els.bookFilterWrap.classList.contains('hidden')) return notes;
-  var b = els.bookFilter.value;
-  return notes.filter(function(n){ return n.book === b; });
+  var list = notes.slice();
+  if(!els.bookFilterWrap.classList.contains('hidden')){
+    var b = els.bookFilter.value;
+    list = list.filter(function(n){ return n.book === b; });
+  }
+  var q = (els.search.value||'').trim().toLowerCase();
+  if(q){ list = list.filter(function(n){
+    return ((n.chapter+' '+n.text+' '+n.note).toLowerCase().indexOf(q) >= 0);
+  }); }
+  var s = els.sortBy.value;
+  list.sort(function(a,b){
+    if(s==='newest') return (b.dtNum - a.dtNum) || (a.ord - b.ord);
+    if(s==='oldest') return (a.dtNum - b.dtNum) || (a.ord - b.ord);
+    if(s==='chapter') return String(a.chapter).localeCompare(String(b.chapter)) || (a.page - b.page) || (a.ord - b.ord);
+    return (a.page - b.page) || (a.ord - b.ord); // location in doc (default)
+  });
+  return list;
 }
 
 /* render */
@@ -314,6 +334,8 @@ function render(){
 }
 els.hideSent.onchange = render;
 els.bookFilter.onchange = render;
+els.sortBy.onchange = render;
+els.search.oninput = render;
 els.resetProgress.onclick = function(){ if(confirm('Clear the sent marks for this doc?')){ sent={}; saveSent(sent); render(); } };
 
 /* hard refresh: clear app-shell cache + service worker, keep settings/marks */
