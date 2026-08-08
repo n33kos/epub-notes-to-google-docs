@@ -85,6 +85,7 @@ function fromLua(root){
 function pick(row, names){ for(var i=0;i<names.length;i++){ for(var key in row){ if(key.toLowerCase().replace(/[\s_]/g,'')===names[i]){ return row[key]; } } } return ''; }
 function fromKodashboard(json){
   var rows = Array.isArray(json) ? json
+    : (json && Array.isArray(json.rows)) ? json.rows
     : (json && Array.isArray(json.annotations)) ? json.annotations
     : (json && Array.isArray(json.highlights)) ? json.highlights
     : (json && Array.isArray(json.data)) ? json.data : null;
@@ -98,7 +99,7 @@ function fromKodashboard(json){
     var page = pick(r,['page','pageno','pagenumber']);
     var book = pick(r,['booktitle','book','title']);
     var nt = mkNote(chapter, text, note, typeof page==='number'?page:parseInt(page,10)||0, book);
-    if(nt) out.push(nt);
+    if(nt && nt.note) out.push(nt); // only rows that actually carry a comment
   });
   return out;
 }
